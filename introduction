@@ -1,0 +1,439 @@
+Node Exporter → Prometheus → Grafana metrics ke liye
+Log Agent → Loki → Grafana logs ke liye.
+
+
+Agent kya hota hai?
+Agent ek chhota software/process hota hai jo kisi machine, application ya container se data collect karta hai aur monitoring system tak pahunchata hai.
+
+Example: aapke paas 3 Kubernetes worker nodes hain. Har node par CPU aur memory information available hai. Monitoring system ko ye information dene ke liye agent/exporter ki zaroorat ho sakti hai.
+
+Do common types samjho:
+
+Metrics agent/exporter: System metrics expose karta hai, jaise Node Exporter.
+
+Log agent: Application/container ki logs collect karke log backend tak bhejta hai, jaise Promtail (legacy) ya Grafana Alloy.
+
+Har agent ka kaam same nahi hota. Node Exporter metrics expose karta hai; Promtail logs forward karta hai.
+
+
+
+2. Prometheus kya hai?
+
+Role: Metrics collection aur storage
+
+Prometheus configured targets se metrics scrape karta hai aur unko time-series database mein store karta hai. Time-series ka matlab hai timestamp ke saath values record hona.
+
+Example:
+
+Time   CPU usage
+
+10:00   35%
+
+10:05   48%
+
+10:10   91%
+-------------------
+
+Prometheus aapko batata hai ki CPU usage badh raha hai ya kam ho raha hai.
+
+Query language: PromQL
+
+Default port: 9090
+
+Kubernetes mein: nodes, pods, application endpoints aur exporters se metrics collect kar sakta hai.
+
+Interview: Prometheus data collect aur store karta hai; Grafana us data ko visualize karti hai.
+
+
+
+
+3. Grafana kya hai?
+
+Role: Visualization aur dashboards
+
+Grafana alag-alag data sources se data query karke graphs, tables aur dashboards dikhata hai.
+
+Example: aapko ek dashboard mein ye sab dikhana hai:
+
+CPU aur memory usage
+
+Kubernetes nodes ki health
+
+Pod count aur restarts
+
+Application response time
+
+Error logs
+
+Grafana inko ek hi UI mein dikhane mein madad karta hai.
+
+Default port: 3000
+
+Grafana apne aap Node Exporter se CPU metrics collect nahi karta; uske liye data source aur data collection pipeline chahiye.
+
+
+
+
+4. Node Exporter kya hai?
+
+Role: Linux machine ki metrics expose karna
+
+Ye Linux OS ke CPU, memory, disk aur network jaise metrics expose karta hai, jise Prometheus scrape kar sakta hai.
+
+Default port: 9100
+
+Worker Node 1 → Node Exporter
+Worker Node 2 → Node Exporter
+Worker Node 3 → Node Exporter
+             ↓
+         Prometheus
+             ↓
+          Grafana
+
+
+
+Promtail kya hai?
+Role: Logs collect aur forward karna
+
+Promtail log files ko read karta hai, labels attach karta hai aur Loki ko logs bhejta hai.
+
+Example: aapke Java application ke logs mein ye error aata hai:
+
+ERROR: Database connection refused
+
+Promtail logs ko collect karke Loki tak bhej sakta hai. Grafana ke through aap error search kar sakte ho.
+
+Important: Promtail deprecated hai. Naye setup mein Grafana Alloy ya koi supported log collector choose karna behtar hai.
+
+
+Loki kya hai?
+
+Role: Log aggregation aur querying
+
+Loki logs ko store aur query karne ka system hai. Ye labels par focus karta hai, jaise namespace, pod aur container.
+
+Example:
+
+namespace="production"
+pod="java-app-xyz"
+
+Aap in labels se relevant logs filter kar sakte ho.
+
+Prometheus metrics ke liye hai; Loki logs ke liye. Dono Grafana ke data sources ban sakte hain.
+
+Aapke abhi wale lab mein Prometheus aur Grafana install hue hain. Aapne jo commands share ki thi, unmein Loki aur Promtail install nahi hue the. Isliye sirf Grafana dashboards import karne se Loki logs automatically available nahi honge.
+
+
+
+
+
+7. Data Source kya hota hai?
+
+Data source ka matlab hai Grafana data kahan se laayega.
+
+Examples:
+
+Prometheus = metrics ka data source
+
+Loki = logs ka data source
+
+Elasticsearch = search/log data source
+
+MySQL = database data source
+
+Aapke lab mein aapne Grafana mein Prometheus ka URL configure kiya tha:
+
+http://prometheus-server.prometheus.svc.cluster.local
+
+Iska matlab Grafana Kubernetes ke internal DNS se Prometheus service ko access kar raha hai.
+
+Agar aap Loki install karte ho, toh Loki ko bhi alag data source ke roop mein add karna hoga.
+
+Yaad rakho: Data source khud agent nahi hai aur na hi dashboard hai. Ye Grafana ko backend se connect karne ka configuration hai.
+
+
+
+
+3. Kubernetes Monitoring aur Standalone Machine mein kya difference hai?
+
+Ye dono alag deployment approaches hain.
+
+
+A. Kubernetes-based monitoring
+Aapke current lab jaisa
+
+Is approach mein Prometheus aur Grafana Kubernetes cluster ke andar Pods, Deployments/StatefulSets aur Services ke roop mein run karte hain. Aapne Helm charts se isi tarah install kiya hai.
+
+Fayde:
+
+Helm se installation aur upgrades.
+
+Kubernetes resources ke saath management.
+
+Node Exporter DaemonSet se har eligible node par exporter.
+
+Cluster aur application metrics ka centralized dashboard.
+
+
+
+B. Standalone monitoring machine
+
+Ismein alag EC2 machine par Prometheus aur Grafana install hote hain. Ye machine Kubernetes cluster ke bahar hoti hai aur cluster ke metrics endpoints ko network ke through scrape karti hai.
+
+Fayde:
+
+Agar Kubernetes cluster down ho, monitoring server alag hone ke kaaran kuch monitoring available reh sakti hai.
+
+Ek central monitoring server multiple clusters ya Linux machines monitor kar sakta hai.
+
+Monitoring workloads application cluster ke resources consume nahi karte.
+
+Lekin monitoring server, network access, authentication aur scrape targets ki configuration manage karni padti hai.
+
+Ek important clarification: Standalone machine ka matlab koi special software nahi hai. Ye sirf installation location ka difference hai. Prometheus aur Grafana wahi hain; bas Kubernetes ke andar run karne ke bajay alag EC2 par run karte hain.
+
+4. Aapke lab mein abhi kaun-kaun se components actually hain?
+
+Aapke shared command output ke hisaab se:
+
+Component
+
+	
+
+Status
+
+
+
+
+Helm
+
+	
+
+Installed
+
+
+
+
+Metrics Server
+
+	
+
+Deployment create hua; health kubectl se verify karni hai
+
+
+
+
+Prometheus Server
+
+	
+
+2/2 Running
+
+
+
+
+Alertmanager
+
+	
+
+2/2 Running
+
+
+
+
+Node Exporter
+
+	
+
+3 pods 1/1 Running
+
+
+
+
+Kube-state-metrics
+
+	
+
+1/1 Running
+
+
+
+
+Grafana
+
+	
+
+1/1 Running
+
+
+
+
+Loki
+
+	
+
+Abhi install nahi hua tha
+
+
+
+
+Promtail
+
+	
+
+Abhi install nahi hua tha
+
+Alertmanager pod running hone ka matlab notification delivery poori tarah configured hai, aisa nahi hai. Alert rules aur notification receiver bhi configure aur test karne padte hain.
+
+5. Real-life scenario se poora connection samjho
+
+Maan lo aapki Kubernetes par deployed website slow ho gayi.
+
+Node Exporter batata hai ki worker node ka CPU usage high hai.
+
+Prometheus metrics scrape karke store karta hai aur CPU query se high usage identify kiya ja sakta hai.
+
+Grafana dashboard par CPU graph dikhata hai.
+
+Alertmanager, agar configured alert rule fire kare, toh on-call engineer ko notification bhejta hai.
+
+Application logs mein problem ka reason dhoondhne ke liye log agent → Loki → Grafana pipeline use hoti hai.
+
+Isse aapko do alag sawaalon ka answer milta hai:
+
+Metrics: Problem kab hui aur system kitna affect hua?
+
+Logs: Application ne error kya diya aur possible reason kya tha?
+
+6. Interview ke liye ek baar mein yaad karne wala chart
+
+Name
+
+	
+
+Kaam
+
+	
+
+Default port
+
+
+
+
+Prometheus
+
+	
+
+Metrics scrape aur store
+
+	
+
+9090
+
+
+
+
+Grafana
+
+	
+
+Dashboard / visualization
+
+	
+
+3000
+
+
+
+
+Node Exporter
+
+	
+
+Linux host metrics
+
+	
+
+9100
+
+
+
+
+Loki
+
+	
+
+Log storage/query
+
+	
+
+3100 (common default)
+
+
+
+
+Promtail
+
+	
+
+Logs collect/forward
+
+	
+
+Fixed universal port nahi
+
+
+
+
+Alertmanager
+
+	
+
+Alert routing/notifications
+
+	
+
+9093
+
+
+
+
+Metrics Server
+
+	
+
+Kubernetes resource metrics API
+
+	
+
+Service port commonly 443
+
+
+
+
+Kube-state-metrics
+
+	
+
+Kubernetes object-state metrics
+
+	
+
+Commonly 8080
+
+
+
+
+Grafana data source
+
+	
+
+Backend connection configuration
+
+	
+
+Apna independent port nahi
+
+Ports default/common examples hain; actual ports chart values aur deployment configuration se badal sakte hain.
+
+Final takeaway: Aapke DevOps project mein Prometheus metrics ka backend hai, Node Exporter host metrics deta hai, Grafana UI hai aur data source un dono ke beech connection establish karne mein madad karta hai. Loki aur log agent tab add honge jab aapko logs bhi isi monitoring platform mein dekhne honge.
